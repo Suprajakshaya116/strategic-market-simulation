@@ -62,6 +62,18 @@ Runs matched, fair ablation experiments across 4 variants (`rl_only`, `stackelbe
 python experiments/run_controlled_experiments.py --seeds 42 100 2026 --timesteps 1000 --eval_episodes 5
 ```
 
+### 3.4 Launch Interactive Research Terminal & Live Frontend
+Start the FastAPI WebSocket backend and React Vite frontend:
+```bash
+# Terminal 1: Launch FastAPI simulation server
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+
+# Terminal 2: Launch Vite React development terminal
+cd frontend
+npm run dev
+```
+Navigate to `http://localhost:5173` to access the live dashboard.
+
 ---
 
 ## 4. Empirical Findings Summary
