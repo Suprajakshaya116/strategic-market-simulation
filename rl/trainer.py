@@ -20,7 +20,8 @@ class RLTrainer:
         env: MarketEnvironment,
         agent: PPOAgent,
         target_agent_id: str = "rl_trader",
-        enable_opponent_modeling: bool = True
+        enable_opponent_modeling: bool = True,
+        strategic_layer: Any = None
     ):
         self.env = env
         self.agent = agent
@@ -32,8 +33,12 @@ class RLTrainer:
             "value": ValueAgent()
         }
 
+        self.strategic_layer = strategic_layer
         self.enable_opponent_modeling = enable_opponent_modeling
-        if enable_opponent_modeling:
+        if strategic_layer is not None:
+            self.opponent_model = getattr(strategic_layer, "opponent_model", None)
+            self.strategic_adapter = None
+        elif enable_opponent_modeling:
             self.opponent_model = EmpiricalOpponentModel(agent_ids=self.env.agent_ids)
             self.strategic_adapter = StrategicStateAdapter(opponent_model=self.opponent_model)
         else:
@@ -59,12 +64,23 @@ class RLTrainer:
         for opp in self.opponents.values():
             if hasattr(opp, "reset"):
                 opp.reset()
+        if self.strategic_layer is not None and hasattr(self.strategic_layer, "reset"):
+            self.strategic_layer.reset()
 
         ep_reward = 0.0
         ep_len = 0
 
         while step < total_timesteps:
-            strat_dict = self.strategic_adapter.build_strategic_dict() if self.enable_opponent_modeling else None
+            market_state = self.env.get_market_state()
+            leader_decision = None
+
+            if self.strategic_layer is not None:
+                leader_decision = self.strategic_layer.solve_leader(market_state)
+                strat_dict = self.strategic_layer.build_observation(market_state, leader_decision)
+            elif self.enable_opponent_modeling:
+                strat_dict = self.strategic_adapter.build_strategic_dict()
+            else:
+                strat_dict = None
 
             # 1. Action selection
             action_idx, log_prob, val = self.agent.select_action(
@@ -81,13 +97,15 @@ class RLTrainer:
                     actions[aid] = env_rl_action
                 elif aid in self.opponents:
                     actions[aid] = self.opponents[aid].act(states[aid])
-                    if self.enable_opponent_modeling:
+                    if self.strategic_layer is not None:
+                        self.strategic_layer.update_opponent(aid, market_state, actions[aid])
+                    elif self.enable_opponent_modeling:
                         self.opponent_model.update(aid, actions[aid], states[aid])
                 else:
                     actions[aid] = "HOLD"
 
-            # 2. Environment step
-            next_states, rewards, done, info = self.env.step(actions)
+            # 2. Environment step with optional leader market_control
+            next_states, rewards, done, info = self.env.step(actions, market_control=leader_decision)
             reward = rewards[self.target_agent_id]
 
             # 3. Store transition
@@ -107,7 +125,15 @@ class RLTrainer:
 
             # 4. Trigger PPO Update when rollout buffer is full
             if len(self.agent.buffer.states) >= self.agent.config.rollout_length:
-                next_strat = self.strategic_adapter.build_strategic_dict() if self.enable_opponent_modeling else None
+                next_m_state = self.env.get_market_state()
+                if self.strategic_layer is not None:
+                    next_ld = self.strategic_layer.solve_leader(next_m_state)
+                    next_strat = self.strategic_layer.build_observation(next_m_state, next_ld)
+                elif self.enable_opponent_modeling:
+                    next_strat = self.strategic_adapter.build_strategic_dict()
+                else:
+                    next_strat = None
+
                 update_metrics = self.agent.update(
                     last_state=next_states[self.target_agent_id],
                     last_done=done,

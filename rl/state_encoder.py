@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import torch
+from typing import Any
 from .config import StateEncoderConfig
 
 
@@ -109,45 +110,52 @@ class StateEncoder:
 
         return raw_vec
 
-    def encode_strategic(self, strategic_dict: dict | None) -> np.ndarray:
+    def encode_strategic(self, strategic_dict: Any) -> np.ndarray:
         """Encode optional strategic game theory information.
 
-        Supported Keys:
-          - leader_action: int or str ("HOLD":0, "BUY":1, "SELL":2) -> 3-dim one-hot
-          - opponent_probs: list/array of float probabilities
-          - expected_response: float metric
+        Supports:
+          - Member 2 StrategicObservation instance (via to_feature_vector())
+          - 11-dimensional feature vector (list / np.ndarray)
+          - Dictionary containing leader_action, opponent_probs, expected_response
         """
         if self.strategic_dim == 0 or strategic_dict is None:
             return np.zeros((self.strategic_dim,), dtype=np.float32)
 
-        feats = []
-        if "leader_action" in strategic_dict:
-            act = strategic_dict["leader_action"]
-            one_hot = np.zeros(3, dtype=np.float32)
-            if isinstance(act, int) and 0 <= act < 3:
-                one_hot[act] = 1.0
-            elif isinstance(act, str):
-                act_map = {"HOLD": 0, "BUY": 1, "SELL": 2}
-                if act.upper() in act_map:
-                    one_hot[act_map[act.upper()]] = 1.0
-            feats.append(one_hot)
+        if hasattr(strategic_dict, "to_feature_vector"):
+            strat_vec = np.array(strategic_dict.to_feature_vector(), dtype=np.float32)
+        elif isinstance(strategic_dict, (list, np.ndarray)):
+            strat_vec = np.array(strategic_dict, dtype=np.float32)
+        elif isinstance(strategic_dict, dict) and "feature_vector" in strategic_dict:
+            strat_vec = np.array(strategic_dict["feature_vector"], dtype=np.float32)
+        elif isinstance(strategic_dict, dict):
+            feats = []
+            if "leader_action" in strategic_dict:
+                act = strategic_dict["leader_action"]
+                one_hot = np.zeros(3, dtype=np.float32)
+                if isinstance(act, int) and 0 <= act < 3:
+                    one_hot[act] = 1.0
+                elif isinstance(act, str):
+                    act_map = {"HOLD": 0, "BUY": 1, "SELL": 2, "TIGHT": 0, "MEDIUM": 1, "WIDE": 2}
+                    if act.upper() in act_map:
+                        one_hot[act_map[act.upper()]] = 1.0
+                feats.append(one_hot)
 
-        if "opponent_probs" in strategic_dict:
-            probs = np.array(strategic_dict["opponent_probs"], dtype=np.float32)
-            feats.append(probs)
+            if "opponent_probs" in strategic_dict:
+                probs = np.array(strategic_dict["opponent_probs"], dtype=np.float32)
+                feats.append(probs)
 
-        if "expected_response" in strategic_dict:
-            resp = np.array([float(strategic_dict["expected_response"])], dtype=np.float32)
-            feats.append(resp)
+            if "expected_response" in strategic_dict:
+                resp = np.array([float(strategic_dict["expected_response"])], dtype=np.float32)
+                feats.append(resp)
 
-        if not feats:
-            return np.zeros((self.strategic_dim,), dtype=np.float32)
+            strat_vec = np.concatenate(feats, axis=0) if feats else np.zeros((self.strategic_dim,), dtype=np.float32)
+        else:
+            strat_vec = np.zeros((self.strategic_dim,), dtype=np.float32)
 
-        strat_vec = np.concatenate(feats, axis=0)
         # Pad or truncate to self.strategic_dim
         if len(strat_vec) < self.strategic_dim:
             strat_vec = np.pad(strat_vec, (0, self.strategic_dim - len(strat_vec)))
-        else:
+        elif len(strat_vec) > self.strategic_dim:
             strat_vec = strat_vec[:self.strategic_dim]
 
         return strat_vec.astype(np.float32)
