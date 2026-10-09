@@ -212,11 +212,14 @@ class MarketEnvironment:
             )
         return rewards
 
-    def step(self, actions):
+    def step(self, actions, market_control=None):
         """Advance one market timestep.
 
         Returns ``(next_state, reward, done, info)`` to match the project's
         Point 26 integration contract.
+
+        Optional ``market_control`` allows the strategic leader / market maker
+        to dynamically adjust market conditions (spread and liquidity multipliers).
         """
         self._validate_actions(actions)
         previous_values = {
@@ -233,6 +236,39 @@ class MarketEnvironment:
         orders, executed = self.execute_orders(actions)
         volumes = self.execution_engine.aggregate_executed(executed)
         self.update_price(volumes["buy_volume"], volumes["sell_volume"])
+
+        # Process optional market control from Strategic Leader
+        applied_control = None
+        if market_control is not None:
+            spread_mult = 1.0
+            liq_mult = 1.0
+            action_name = str(market_control)
+
+            if isinstance(market_control, dict):
+                action_name = market_control.get("leader_action", "MEDIUM")
+                spread_mult = float(market_control.get("spread_multiplier", 1.0))
+                liq_mult = float(market_control.get("liquidity_multiplier", 1.0))
+            elif hasattr(market_control, "selected_action"):
+                action_name = market_control.selected_action.value
+            elif hasattr(market_control, "value"):
+                action_name = market_control.value
+
+            action_upper = str(action_name).upper()
+            if action_upper == "TIGHT":
+                spread_mult = spread_mult if isinstance(market_control, dict) and "spread_multiplier" in market_control else 0.7
+                liq_mult = liq_mult if isinstance(market_control, dict) and "liquidity_multiplier" in market_control else 1.3
+            elif action_upper == "WIDE":
+                spread_mult = spread_mult if isinstance(market_control, dict) and "spread_multiplier" in market_control else 1.4
+                liq_mult = liq_mult if isinstance(market_control, dict) and "liquidity_multiplier" in market_control else 0.7
+
+            self.spread = float(self.spread * spread_mult)
+            self.liquidity = float(self.liquidity * liq_mult)
+            applied_control = {
+                "leader_action": action_upper,
+                "spread_multiplier": spread_mult,
+                "liquidity_multiplier": liq_mult,
+            }
+
         rewards = self.calculate_rewards(previous_values, previous_costs)
 
         self.step_count += 1
@@ -250,6 +286,7 @@ class MarketEnvironment:
             "liquidity": float(self.liquidity),
             "volatility": float(self.volatility),
             "volume": volumes["buy_volume"] + volumes["sell_volume"],
+            "market_control": applied_control,
             "portfolio_values": {
                 aid: float(self.portfolios[aid].portfolio_value)
                 for aid in self.agent_ids
