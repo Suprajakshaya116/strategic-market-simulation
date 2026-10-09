@@ -21,6 +21,11 @@ coverage.xml
 *.cover
 *.py,cover
 
+# Model Checkpoints
+checkpoints/
+*.pt
+*.pth
+
 # IDEs and Editors
 .vscode/
 .idea/
