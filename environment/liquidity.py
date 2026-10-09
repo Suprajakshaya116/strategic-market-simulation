@@ -13,6 +13,8 @@ class LiquidityModel:
         new_liquidity += self.recovery * (self.initial_liquidity - new_liquidity)
         new_liquidity = max(new_liquidity, 1e-8)
 
-        # Spread widens as order-flow pressure rises.
-        new_spread = max(self.initial_spread * (1.0 + pressure), 1e-8)
+        # Spread widens as order-flow pressure rises, with recovery towards initial_spread.
+        new_spread = spread * (1.0 + pressure)
+        new_spread += self.recovery * (self.initial_spread - new_spread)
+        new_spread = max(new_spread, 1e-8)
         return new_liquidity, new_spread

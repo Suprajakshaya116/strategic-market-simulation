@@ -43,3 +43,4 @@ build/
 dist/
 *.egg-info/
 *.egg
+*.zip

@@ -45,7 +45,12 @@ class RLTrainer:
             self.opponent_model = None
             self.strategic_adapter = StrategicStateAdapter(opponent_model=None)
 
-        self.evaluator = Evaluator(env=self.env)
+        self.evaluator = Evaluator(
+            env=self.env,
+            strategic_layer=self.strategic_layer,
+            enable_opponent_modeling=self.enable_opponent_modeling,
+            strategic_adapter=self.strategic_adapter
+        )
         self.metrics_tracker = MetricsTracker()
 
     def train(

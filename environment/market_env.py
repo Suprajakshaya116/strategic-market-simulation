@@ -133,7 +133,7 @@ class MarketEnvironment:
 
 
     def execute_orders(self, actions):
-        """Validate, normalize and execute trader orders."""
+        """Validate, normalize and execute trader orders against current quotes."""
         self._validate_actions(actions)
 
         orders = self.order_manager.create_orders(actions)
@@ -142,6 +142,8 @@ class MarketEnvironment:
             orders,
             self.price,
             self.liquidity,
+            bid_price=self.bid_price,
+            ask_price=self.ask_price,
         )
 
         return orders, executed
@@ -218,8 +220,9 @@ class MarketEnvironment:
         Returns ``(next_state, reward, done, info)`` to match the project's
         Point 26 integration contract.
 
-        Optional ``market_control`` allows the strategic leader / market maker
-        to dynamically adjust market conditions (spread and liquidity multipliers).
+        The strategic leader's ``market_control`` action (TIGHT, MEDIUM, WIDE)
+        is applied to the market conditions (spread and liquidity multipliers)
+        BEFORE follower order execution, establishing the causal Stackelberg sequence.
         """
         self._validate_actions(actions)
         previous_values = {
@@ -233,11 +236,7 @@ class MarketEnvironment:
             for aid in self.agent_ids
         }
 
-        orders, executed = self.execute_orders(actions)
-        volumes = self.execution_engine.aggregate_executed(executed)
-        self.update_price(volumes["buy_volume"], volumes["sell_volume"])
-
-        # Process optional market control from Strategic Leader
+        # 1. Apply strategic market control from Leader BEFORE order execution
         applied_control = None
         if market_control is not None:
             spread_mult = 1.0
@@ -268,6 +267,13 @@ class MarketEnvironment:
                 "spread_multiplier": spread_mult,
                 "liquidity_multiplier": liq_mult,
             }
+
+        # 2. Execute orders under the resulting market conditions
+        orders, executed = self.execute_orders(actions)
+        volumes = self.execution_engine.aggregate_executed(executed)
+
+        # 3. Update market price and dynamics
+        self.update_price(volumes["buy_volume"], volumes["sell_volume"])
 
         rewards = self.calculate_rewards(previous_values, previous_costs)
 

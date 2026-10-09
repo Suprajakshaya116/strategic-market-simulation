@@ -30,11 +30,16 @@ class GameTheoryConfig:
     wide_spread_multiplier: float = 1.4
     wide_liquidity_multiplier: float = 0.7
 
+    # Response Temperature for Opponent Modeling Integration
+    temperature: float = 0.5
+
     # Reproducibility
     seed: Optional[int] = 42
 
     def validate(self) -> None:
         """Validate configuration parameters."""
+        if self.temperature <= 0:
+            raise ValueError("temperature must be > 0")
         if self.leader_liquidity_weight < 0:
             raise ValueError("leader_liquidity_weight must be >= 0")
         if self.leader_activity_weight < 0:

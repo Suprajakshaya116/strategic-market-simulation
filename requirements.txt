@@ -3,3 +3,4 @@ pandas>=2.0
 scipy>=1.11
 gymnasium>=0.29
 pytest>=8.0
+torch>=2.0.0

@@ -23,8 +23,12 @@ class StrategicLayer:
         self.use_stackelberg = use_stackelberg
         self.use_opponent_model = use_opponent_model
 
-        self.stackelberg_game = StackelbergGame(self.config) if use_stackelberg else None
         self.opponent_model = OpponentModel(self.config) if use_opponent_model else None
+        self.stackelberg_game = (
+            StackelbergGame(self.config, opponent_model=self.opponent_model)
+            if use_stackelberg
+            else None
+        )
 
     def reset(self) -> None:
         """Reset internal state (e.g. opponent model statistics)."""

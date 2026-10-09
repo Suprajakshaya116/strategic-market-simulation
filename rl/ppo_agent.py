@@ -189,6 +189,13 @@ class PPOAgent:
         return avg_metrics
 
     def save_checkpoint(self, filepath: str) -> str:
+        metadata = {
+            "state_dim": self.encoder.total_dim,
+            "strategic_dim": self.strategic_dim,
+            "action_size": self.action_space.num_actions,
+            "hidden_dim": self.config.hidden_dim,
+            "ppo_config": self.config.__dict__
+        }
         return self.checkpoint_manager.save_checkpoint(
             filepath=filepath,
             policy_state_dict=self.policy.state_dict(),
@@ -196,11 +203,26 @@ class PPOAgent:
             optimizer_state_dict=self.optimizer.state_dict(),
             encoder_state_dict=self.encoder.get_state_dict(),
             step_count=self.step_count,
-            config_dict={"ppo_config": self.config.__dict__}
+            config_dict=metadata
         )
 
     def load_checkpoint(self, filepath: str) -> None:
         payload = self.checkpoint_manager.load_checkpoint(filepath, device=self.device)
+        config = payload.get("config", {})
+        if "state_dim" in config:
+            saved_dim = config["state_dim"]
+            if saved_dim != self.encoder.total_dim:
+                raise ValueError(
+                    f"Checkpoint state_dim ({saved_dim}) does not match agent total_dim ({self.encoder.total_dim}). "
+                    f"Saved strategic_dim={config.get('strategic_dim')}, agent strategic_dim={self.strategic_dim}."
+                )
+        if "action_size" in config:
+            saved_actions = config["action_size"]
+            if saved_actions != self.action_space.num_actions:
+                raise ValueError(
+                    f"Checkpoint action_size ({saved_actions}) does not match agent action_size ({self.action_space.num_actions})."
+                )
+
         self.policy.load_state_dict(payload["policy"])
         self.value_net.load_state_dict(payload["value"])
         self.optimizer.load_state_dict(payload["optimizer"])
