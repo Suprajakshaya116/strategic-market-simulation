@@ -28,3 +28,8 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["environment*", "agents*", "game_theory*", "rl*", "experiments*", "analysis*"]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+extraPaths = ["."]
