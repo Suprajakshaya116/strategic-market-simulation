@@ -28,6 +28,7 @@ def run_rule_baseline_experiment(episodes: int = 10, episode_length: int = 100):
         momentum.reset()
         ep_rewards = {aid: 0.0 for aid in env.agent_ids}
         done = False
+        info: dict = {}
 
         while not done:
             actions = {
@@ -42,7 +43,8 @@ def run_rule_baseline_experiment(episodes: int = 10, episode_length: int = 100):
 
         for aid in env.agent_ids:
             rewards_history[aid].append(ep_rewards[aid])
-            portfolio_history[aid].append(info["portfolio_values"][aid])
+            pv = info.get("portfolio_values", {}).get(aid, 0.0) if info else 0.0
+            portfolio_history[aid].append(pv)
 
     print("\n===== RULE BASELINE COMPLETED =====")
     for aid in env.agent_ids:

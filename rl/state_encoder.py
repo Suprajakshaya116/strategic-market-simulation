@@ -162,7 +162,7 @@ class StateEncoder:
     def encode(
         self,
         state: dict,
-        strategic_dict: dict | None = None,
+        strategic_dict: Any = None,
         update_stats: bool = False
     ) -> np.ndarray:
         """Return full encoded and normalized feature vector."""

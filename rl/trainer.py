@@ -82,7 +82,7 @@ class RLTrainer:
             if self.strategic_layer is not None:
                 leader_decision = self.strategic_layer.solve_leader(market_state)
                 strat_dict = self.strategic_layer.build_observation(market_state, leader_decision)
-            elif self.enable_opponent_modeling:
+            elif self.enable_opponent_modeling and self.strategic_adapter is not None:
                 strat_dict = self.strategic_adapter.build_strategic_dict()
             else:
                 strat_dict = None
@@ -104,7 +104,7 @@ class RLTrainer:
                     actions[aid] = self.opponents[aid].act(states[aid])
                     if self.strategic_layer is not None:
                         self.strategic_layer.update_opponent(aid, market_state, actions[aid])
-                    elif self.enable_opponent_modeling:
+                    elif self.enable_opponent_modeling and self.opponent_model is not None:
                         self.opponent_model.update(aid, actions[aid], states[aid])
                 else:
                     actions[aid] = "HOLD"
@@ -134,7 +134,7 @@ class RLTrainer:
                 if self.strategic_layer is not None:
                     next_ld = self.strategic_layer.solve_leader(next_m_state)
                     next_strat = self.strategic_layer.build_observation(next_m_state, next_ld)
-                elif self.enable_opponent_modeling:
+                elif self.enable_opponent_modeling and self.strategic_adapter is not None:
                     next_strat = self.strategic_adapter.build_strategic_dict()
                 else:
                     next_strat = None

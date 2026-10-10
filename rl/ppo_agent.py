@@ -1,3 +1,4 @@
+from typing import Any
 import numpy as np
 import torch
 import torch.optim as optim
@@ -64,7 +65,7 @@ class PPOAgent:
     def select_action(
         self,
         state: dict,
-        strategic_dict: dict | None = None,
+        strategic_dict: Any = None,
         update_encoder_stats: bool = True,
         deterministic: bool = False
     ) -> tuple[int, float, float]:
@@ -89,7 +90,7 @@ class PPOAgent:
 
         return action, log_prob, value
 
-    def get_value(self, state: dict, strategic_dict: dict | None = None) -> float:
+    def get_value(self, state: dict, strategic_dict: Any = None) -> float:
         """Compute state value estimate V(s)."""
         state_vec = self.encoder.encode(state, strategic_dict, update_stats=False)
         state_tensor = to_tensor(state_vec, device=self.device).unsqueeze(0)
@@ -105,7 +106,7 @@ class PPOAgent:
         reward: float,
         value: float,
         done: bool,
-        strategic_dict: dict | None = None
+        strategic_dict: Any = None
     ) -> None:
         state_vec = self.encoder.encode(state, strategic_dict, update_stats=False)
         strat_vec = self.encoder.encode_strategic(strategic_dict) if self.strategic_dim > 0 else None
@@ -121,7 +122,7 @@ class PPOAgent:
         )
         self.step_count += 1
 
-    def update(self, last_state: dict, last_done: bool, last_strategic_dict: dict | None = None) -> dict[str, float]:
+    def update(self, last_state: dict, last_done: bool, last_strategic_dict: Any = None) -> dict[str, float]:
         """Perform PPO optimization epochs over rollout buffer."""
         last_val = self.get_value(last_state, last_strategic_dict)
         self.buffer.compute_returns_and_advantages(

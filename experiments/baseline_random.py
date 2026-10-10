@@ -26,6 +26,7 @@ def run_random_baseline_experiment(episodes: int = 10, episode_length: int = 100
         states = env.reset(seed=100 + ep)
         ep_reward = 0.0
         done = False
+        info: dict = {}
 
         while not done:
             random_action = rng.choice(actions_list)
@@ -38,7 +39,8 @@ def run_random_baseline_experiment(episodes: int = 10, episode_length: int = 100
             ep_reward += rewards["rl_trader"]
 
         rewards_history.append(ep_reward)
-        portfolio_history.append(info["portfolio_values"]["rl_trader"])
+        pv = info.get("portfolio_values", {}).get("rl_trader", 0.0) if info else 0.0
+        portfolio_history.append(pv)
 
     mean_reward = float(np.mean(rewards_history))
     mean_pv = float(np.mean(portfolio_history))
