@@ -10,10 +10,10 @@ The framework couples three distinct research subsystems into a unified sequenti
 
 ```mermaid
 graph TD
-    A[Market Environment (Member 1)] -->|Market State (10-dim)| B[Game-Theoretic Strategic Layer (Member 2)]
-    B -->|Leader Action + Opponent Probs (11-dim)| C[PPO / MAPPO Agent (Member 3)]
-    C -->|Trader Action: BUY/HOLD/SELL| A
-    A -->|Next State, Rewards, Done, Info| C
+    A["Market Environment (Member 1)"] -->|"Market State (10-dim)"| B["Game-Theoretic Strategic Layer (Member 2)"]
+    B -->|"Leader Action + Opponent Probs (11-dim)"| C["PPO / MAPPO Agent (Member 3)"]
+    C -->|"Trader Action: BUY / HOLD / SELL"| A
+    A -->|"Next State, Rewards, Done, Info"| C
 ```
 
 1. **Artificial Financial Market Engine (Member 1)**:
