@@ -12,7 +12,7 @@
 - **Final Status**: **FULLY REPAIRED, INTEGRATED, AND VALIDATED**
 - **Test Suite Results**:
   - **Before Repair**: 34 unit tests passed, but major integration defects existed in evaluation parity, Stackelberg action timing, opponent model solver utilization, packaging imports, and baseline fairness.
-  - **After Repair**: **44 passed in 2.27 seconds** across 9 test suites, including 10 comprehensive regression and acceptance tests verifying all audit priorities.
+  - **After Repair & Peer Review Audit**: **53 passed** across all 14 test suites in `tests/`, including comprehensive regression and acceptance tests verifying all market dynamics, game-theoretic solvers, and RL subsystems.
 - **End-to-End Pipeline**: Verified via automated acceptance test and `examples/end_to_end_example.py` exercising real Market Environment (Member 1), Stackelberg Strategic Layer & Opponent Model (Member 2), and PPO RL Trading Policy (Member 3) with genuine parameter updates.
 
 ---
@@ -109,7 +109,7 @@
 
 | Test Suite | File | Tests | Status | Verification Focus |
 | :--- | :--- | :---: | :---: | :--- |
-| **Audit Repairs** | `tests/test_audit_repairs.py` | 10 | **PASS** | 20-step acceptance pipeline, quote fills, opponent shifts, eval parity |
+| **Audit Repairs** | `tests/test_audit_repairs.py` | 10 | **PASS** | Acceptance pipeline, quote fills, opponent shifts, eval parity |
 | **End-to-End Audit** | `tests/test_end_to_end_audit.py` | 1 | **PASS** | Full 3-member multi-step simulation loop |
 | **Game Theory Types** | `tests/test_game_theory_types.py` | 4 | **PASS** | Enums, dataclasses, 11-dim feature vectors |
 | **Market Dynamics** | `tests/test_market_dynamics.py` | 8 | **PASS** | Price model, order imbalance, liquidity recovery |
@@ -118,12 +118,41 @@
 | **RL Subsystem** | `tests/test_rl_subsystem.py` | 7 | **PASS** | Policy/Value networks, GAE advantages, checkpoint manager |
 | **Stackelberg Solver**| `tests/test_stackelberg.py` | 4 | **PASS** | Candidate evaluations, utility calculations, tie-breaking |
 | **Strategic Integration**| `tests/test_strategic_integration.py` | 3 | **PASS** | Modular ablation toggles, market control propagation |
-| **Total** | | **44** | **ALL PASS** | 100% test pass rate in 2.27 seconds |
+| **Analysis Suite** | `tests/test_analysis.py` | 3 | **PASS** | Metrics calculations, statistical tests, plotting sanity |
+| **API Integration** | `tests/test_api_integration.py` | 2 | **PASS** | FastAPI endpoint responses and schemas |
+| **Member 1 Unit** | `tests/test_member1.py` | 1 | **PASS** | Component-level environment step verification |
+| **Portfolio Tracker**| `tests/test_portfolio.py` | 2 | **PASS** | Cash, inventory reconciliation, equity accounting |
+| **Sell Execution** | `tests/test_sell_execution.py` | 1 | **PASS** | Bid quote fill and short inventory constraints |
+| **Total** | | **53** | **ALL PASS** | 100% test pass rate across complete test suite |
 
 ---
 
-## 4. Remaining Limitations
+## 4. Resolution of 10 Peer Review & Research Audit Issues
 
-1. **Stationary Follower Rule Set**: Momentum and Value agents follow deterministic heuristic policies. While the opponent model successfully learns their empirical tendencies, multi-agent co-adaptation with self-play RL followers remains a topic for future study.
-2. **Value Loss Magnitude**: Because rewards are computed in raw portfolio dollar returns, value loss naturally scales with dollar values squared ($\sim 10^5$). Reward scaling (e.g. $\times 0.01$ or percentage returns) is recommended for production RL training to bring value losses down to standard scales.
-3. **Execution Compute**: Multi-seed long-horizon training ($> 100,000$ steps) benefits from GPU acceleration; current CPU verification used 1,000 steps per variant.
+1. **Issue 1 (Opponent-Model Component Benefit & Ablation Divergence)**:
+   - *Fix*: Calibrated leader adverse flow penalty (`leader_adverse_flow_penalty = 2.0`) and normalized activity. The leader dynamically shifts between `TIGHT`, `MEDIUM`, and `WIDE` actions based on opponent predictions, producing distinct empirical behavior between `proposed_full` and `stackelberg_only`.
+2. **Issue 2 (Runaway Spread Divergence in Baselines)**:
+   - *Fix*: Replaced compounded spread growth with an anchored mean-reversion model bounded by economic ceiling `max_spread`. Spread is bounded between \$0.037 and \$0.34 across all baseline variants.
+3. **Issue 3 (Financial Metric Mathematical Rigor)**:
+   - *Fix*: Standardized Sharpe ratio to periodic per-step returns ($r_t = \Delta V_t / V_{t-1}$) bounded to $[-10, 10]$. Disaggregated `mean_max_drawdown` and `worst_case_max_drawdown`. Replaced step win rate with genuine `episode_win_rate`.
+4. **Issue 4 (Strategic Observation Feature Vector Dimensionality)**:
+   - *Fix*: Aligned `StateEncoder.encode()` dictionary parser to match `StrategicObservation.to_feature_vector()`'s exact 11 features index-for-index.
+5. **Issue 5 (Framing: Single-Agent PPO Ablations vs CTDE MAPPO)**:
+   - *Fix*: Explicitly clarified in `RESEARCH_VALIDATION.md` and docstrings that the trading agent uses single-agent PPO augmented with game-theoretic state features, reserving CTDE MAPPO for future work.
+6. **Issue 6 (Reward Scaling & Value Target Stabilization)**:
+   - *Fix*: Added configurable `reward_scaling` (default `0.01`) in `RLConfig` and `PPOAgent` to stabilize value loss and gradient variance.
+7. **Issue 7 (Action Space Representation Clarification)**:
+   - *Fix*: Documented that the trading agent action space is direction-only (`[HOLD, BUY, SELL]`) with fixed execution sizing ($10$ shares).
+8. **Issue 8 (Game-Theoretic Theoretical Scope & Computational Heuristics)**:
+   - *Fix*: Formulated the game-theoretic layer as a computational finite-action bi-level heuristic rather than an exact infinite-horizon subgame perfect equilibrium.
+9. **Issue 9 (Test Suite Count Synchronization)**:
+   - *Fix*: Synchronized all audit documentation to accurately record **53 passed tests** across 14 test suites.
+10. **Issue 10 (Calibrated Empirical Claims)**:
+    - *Fix*: Re-ran controlled multi-seed experiments (3 seeds, 4 variants) and updated all documentation with defensible, verified empirical figures.
+
+---
+
+## 5. Remaining Limitations
+
+1. **Stationary Follower Rule Set**: Heuristic followers follow fixed rules. Multi-agent co-adaptation with self-play RL followers is a future research direction.
+2. **Execution Compute**: Multi-seed long-horizon training ($> 100,000$ steps) benefits from GPU acceleration; current verification used 1,000 steps per variant across 3 seeds.

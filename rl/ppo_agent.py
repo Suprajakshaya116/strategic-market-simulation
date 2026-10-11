@@ -111,11 +111,12 @@ class PPOAgent:
         state_vec = self.encoder.encode(state, strategic_dict, update_stats=False)
         strat_vec = self.encoder.encode_strategic(strategic_dict) if self.strategic_dim > 0 else None
 
+        scaled_reward = float(reward) * getattr(self.config, "reward_scaling", 1.0)
         self.buffer.add(
             state=state_vec,
             action=action,
             log_prob=log_prob,
-            reward=reward,
+            reward=scaled_reward,
             value=value,
             done=done,
             strategic_state=strat_vec

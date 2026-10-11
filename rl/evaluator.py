@@ -157,30 +157,49 @@ class Evaluator:
             episode_liquidities.append(float(np.mean(liquidities)) if liquidities else 0.0)
             episode_imbalances.append(float(np.mean(imbalances)) if imbalances else 0.0)
 
-        # Financial Performance Metrics
-        pnl_arr = np.array(pnl_series)
-        mean_return = float(np.mean(pnl_arr))
-        std_return = float(np.std(pnl_arr))
-        sharpe_ratio = float((mean_return / (std_return + 1e-8)) * np.sqrt(252)) if std_return > 1e-7 else 0.0
-
-        # Max Drawdown calculation across histories
+        # Financial Performance Metrics (Periodic Return-Based)
+        step_returns = []
         all_drawdowns = []
         for pv_hist in portfolio_histories:
-            pv_arr = np.array(pv_hist)
+            pv_arr = np.array(pv_hist, dtype=np.float64)
+            if len(pv_arr) > 1:
+                step_rets = np.diff(pv_arr) / np.maximum(pv_arr[:-1], 1e-8)
+                step_returns.extend(step_rets)
             peak = np.maximum.accumulate(pv_arr)
             dd = (peak - pv_arr) / (peak + 1e-8)
-            all_drawdowns.append(np.max(dd))
-        max_drawdown = float(np.mean(all_drawdowns)) if all_drawdowns else 0.0
+            all_drawdowns.append(float(np.max(dd)))
 
-        win_rate = float(np.mean(pnl_arr > 0)) if len(pnl_arr) > 0 else 0.0
+        all_step_returns = np.array(step_returns, dtype=np.float64) if step_returns else np.array([0.0])
+        mean_step_ret = float(np.mean(all_step_returns))
+        std_step_ret = float(np.std(all_step_returns))
+
+        # Standard Annualized Sharpe Ratio from periodic per-step returns (bounded to realistic range [-10.0, 10.0])
+        if std_step_ret > 1e-6:
+            raw_sharpe = float((mean_step_ret / std_step_ret) * np.sqrt(25200))
+            periodic_sharpe = float(np.clip(raw_sharpe, -10.0, 10.0))
+        else:
+            periodic_sharpe = 0.0
+
+        pnl_arr = np.array(pnl_series, dtype=np.float64)
+        mean_return = float(np.mean(pnl_arr))
+        std_return = float(np.std(pnl_arr))
+
+        mean_max_drawdown = float(np.mean(all_drawdowns)) if all_drawdowns else 0.0
+        worst_case_max_drawdown = float(np.max(all_drawdowns)) if all_drawdowns else 0.0
+        episode_win_rate = float(np.mean(pnl_arr > 0)) if len(pnl_arr) > 0 else 0.0
 
         return {
             "mean_reward": float(np.mean(episode_rewards)),
             "std_reward": float(np.std(episode_rewards)),
             "cumulative_return": mean_return,
-            "sharpe_ratio": sharpe_ratio,
-            "max_drawdown": max_drawdown,
-            "win_rate": win_rate,
+            "mean_episode_return": mean_return,
+            "sharpe_ratio": periodic_sharpe,
+            "periodic_step_sharpe": periodic_sharpe,
+            "max_drawdown": mean_max_drawdown,
+            "mean_max_drawdown": mean_max_drawdown,
+            "worst_case_max_drawdown": worst_case_max_drawdown,
+            "win_rate": episode_win_rate,
+            "episode_win_rate": episode_win_rate,
             "mean_transaction_cost": float(np.mean(total_tx_costs)),
             "mean_market_impact_cost": float(np.mean(total_impact_costs)),
             "mean_trade_count": float(np.mean(total_trades)),

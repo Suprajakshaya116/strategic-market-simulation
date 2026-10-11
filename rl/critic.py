@@ -29,3 +29,4 @@ class CentralizedCritic(nn.Module):
     def forward(self, global_state: torch.Tensor) -> torch.Tensor:
         """Estimate global state value V(S_global)."""
         return self.critic(global_state)
+

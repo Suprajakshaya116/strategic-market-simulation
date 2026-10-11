@@ -26,23 +26,28 @@ def calculate_leader_utility(
     base_liquidity = float(state.get("liquidity", 1.0))
     volatility = float(state.get("volatility", 0.01))
 
-    # Apply spread/liquidity multipliers according to the candidate leader action
-    if leader_action == LeaderAction.TIGHT:
-        effective_liquidity = base_liquidity * cfg.tight_liquidity_multiplier
-    elif leader_action == LeaderAction.WIDE:
-        effective_liquidity = base_liquidity * cfg.wide_liquidity_multiplier
-    else:
-        effective_liquidity = base_liquidity * cfg.medium_liquidity_multiplier
+    spread_mult = {
+        LeaderAction.TIGHT: cfg.tight_spread_multiplier,
+        LeaderAction.MEDIUM: cfg.medium_spread_multiplier,
+        LeaderAction.WIDE: cfg.wide_spread_multiplier,
+    }[leader_action]
+    liq_mult = {
+        LeaderAction.TIGHT: cfg.tight_liquidity_multiplier,
+        LeaderAction.MEDIUM: cfg.medium_liquidity_multiplier,
+        LeaderAction.WIDE: cfg.wide_liquidity_multiplier,
+    }[leader_action]
 
+    effective_liquidity = base_liquidity * liq_mult
     trading_activity = expected_buy_pressure + expected_sell_pressure
-    volatility_risk = volatility
+    norm_activity = trading_activity / max(2.0 * cfg.expected_order_size, 1e-8)
+    spread_revenue = spread_mult * norm_activity
+    adverse_flow_risk = (1.0 / max(spread_mult, 1e-4)) * abs(expected_order_imbalance) * (1.0 + volatility * 20.0)
     inventory_risk = abs(leader_inventory) * volatility
-    adverse_flow_risk = abs(expected_order_imbalance)
 
     u_l = (
         cfg.leader_liquidity_weight * effective_liquidity
-        + cfg.leader_activity_weight * trading_activity
-        - cfg.leader_volatility_penalty * volatility_risk
+        + cfg.leader_activity_weight * spread_revenue
+        - cfg.leader_volatility_penalty * volatility
         - cfg.leader_inventory_penalty * inventory_risk
         - cfg.leader_adverse_flow_penalty * adverse_flow_risk
     )

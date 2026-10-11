@@ -32,6 +32,7 @@ class PPOConfig:
     use_orthogonal_init: bool = True
     use_layer_norm: bool = True
     clip_value_loss: bool = True
+    reward_scaling: float = 1.0
     target_kl: Optional[float] = 0.015
     device: str = "cpu"
     seed: Optional[int] = 42

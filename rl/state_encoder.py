@@ -127,27 +127,40 @@ class StateEncoder:
         elif isinstance(strategic_dict, dict) and "feature_vector" in strategic_dict:
             strat_vec = np.array(strategic_dict["feature_vector"], dtype=np.float32)
         elif isinstance(strategic_dict, dict):
-            feats = []
-            if "leader_action" in strategic_dict:
-                act = strategic_dict["leader_action"]
-                one_hot = np.zeros(3, dtype=np.float32)
-                if isinstance(act, int) and 0 <= act < 3:
-                    one_hot[act] = 1.0
-                elif isinstance(act, str):
-                    act_map = {"HOLD": 0, "BUY": 1, "SELL": 2, "TIGHT": 0, "MEDIUM": 1, "WIDE": 2}
-                    if act.upper() in act_map:
-                        one_hot[act_map[act.upper()]] = 1.0
-                feats.append(one_hot)
+            # Check for standard StrategicObservation keys
+            if "momentum_buy_probability" in strategic_dict or "leader_utility" in strategic_dict:
+                action_map = {"TIGHT": 0.0, "MEDIUM": 1.0, "WIDE": 2.0, "0": 0.0, "1": 1.0, "2": 2.0}
+                act_raw = strategic_dict.get("leader_action", "MEDIUM")
+                act_val = action_map.get(str(act_raw).upper(), 1.0)
+                strat_vec = np.array([
+                    float(act_val),
+                    float(strategic_dict.get("leader_utility", 0.0)),
+                    float(strategic_dict.get("momentum_buy_probability", 1.0 / 3.0)),
+                    float(strategic_dict.get("momentum_hold_probability", 1.0 / 3.0)),
+                    float(strategic_dict.get("momentum_sell_probability", 1.0 / 3.0)),
+                    float(strategic_dict.get("value_buy_probability", 1.0 / 3.0)),
+                    float(strategic_dict.get("value_hold_probability", 1.0 / 3.0)),
+                    float(strategic_dict.get("value_sell_probability", 1.0 / 3.0)),
+                    float(strategic_dict.get("expected_buy_pressure", 0.0)),
+                    float(strategic_dict.get("expected_sell_pressure", 0.0)),
+                    float(strategic_dict.get("expected_order_imbalance", 0.0)),
+                ], dtype=np.float32)
+            else:
+                feats = []
+                if "leader_action" in strategic_dict:
+                    act_map = {"TIGHT": 0.0, "MEDIUM": 1.0, "WIDE": 2.0, "HOLD": 0.0, "BUY": 1.0, "SELL": 2.0}
+                    act_val = act_map.get(str(strategic_dict["leader_action"]).upper(), 0.0)
+                    feats.append(np.array([act_val], dtype=np.float32))
 
-            if "opponent_probs" in strategic_dict:
-                probs = np.array(strategic_dict["opponent_probs"], dtype=np.float32)
-                feats.append(probs)
+                if "opponent_probs" in strategic_dict:
+                    probs = np.array(strategic_dict["opponent_probs"], dtype=np.float32)
+                    feats.append(probs)
 
-            if "expected_response" in strategic_dict:
-                resp = np.array([float(strategic_dict["expected_response"])], dtype=np.float32)
-                feats.append(resp)
+                if "expected_response" in strategic_dict:
+                    resp = np.array([float(strategic_dict["expected_response"])], dtype=np.float32)
+                    feats.append(resp)
 
-            strat_vec = np.concatenate(feats, axis=0) if feats else np.zeros((self.strategic_dim,), dtype=np.float32)
+                strat_vec = np.concatenate(feats, axis=0) if feats else np.zeros((self.strategic_dim,), dtype=np.float32)
         else:
             strat_vec = np.zeros((self.strategic_dim,), dtype=np.float32)
 

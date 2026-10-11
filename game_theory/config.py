@@ -11,7 +11,7 @@ class GameTheoryConfig:
     leader_activity_weight: float = 0.5     # beta
     leader_volatility_penalty: float = 0.5   # gamma
     leader_inventory_penalty: float = 0.2    # delta
-    leader_adverse_flow_penalty: float = 0.5 # epsilon
+    leader_adverse_flow_penalty: float = 2.0 # epsilon
 
     # Follower Utility Weights
     follower_return_weight: float = 1.0

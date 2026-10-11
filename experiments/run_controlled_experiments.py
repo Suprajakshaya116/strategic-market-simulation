@@ -10,6 +10,9 @@ Saves machine-readable results to JSON and CSV.
 """
 
 import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import json
 import csv
 import argparse
@@ -137,11 +140,15 @@ def run_variant(
         "seed": seed,
         "total_timesteps": total_timesteps,
         "cumulative_return": eval_metrics["cumulative_return"],
+        "mean_episode_return": eval_metrics.get("mean_episode_return", eval_metrics["cumulative_return"]),
         "mean_reward": eval_metrics["mean_reward"],
         "std_reward": eval_metrics["std_reward"],
         "sharpe_ratio": eval_metrics["sharpe_ratio"],
+        "periodic_step_sharpe": eval_metrics.get("periodic_step_sharpe", eval_metrics["sharpe_ratio"]),
         "max_drawdown": eval_metrics["max_drawdown"],
+        "worst_case_max_drawdown": eval_metrics.get("worst_case_max_drawdown", eval_metrics["max_drawdown"]),
         "win_rate": eval_metrics["win_rate"],
+        "episode_win_rate": eval_metrics.get("episode_win_rate", eval_metrics["win_rate"]),
         "mean_transaction_cost": eval_metrics["mean_transaction_cost"],
         "mean_market_impact_cost": eval_metrics["mean_market_impact_cost"],
         "mean_trade_count": eval_metrics["mean_trade_count"],
@@ -154,9 +161,9 @@ def run_variant(
     }
 
     print(
-        f"  [Result] Return: {record['cumulative_return']*100:.2f}% | "
-        f"Sharpe: {record['sharpe_ratio']:.2f} | "
-        f"MaxDD: {record['max_drawdown']*100:.2f}% | "
+        f"  [Result] Return: {record['mean_episode_return']*100:.2f}% | "
+        f"Sharpe: {record['periodic_step_sharpe']:.2f} | "
+        f"MaxDD: {record['max_drawdown']*100:.2f}% (Worst: {record['worst_case_max_drawdown']*100:.2f}%) | "
         f"Trades: {record['mean_trade_count']:.1f} | "
         f"Spread: {record['mean_spread']:.4f}"
     )
